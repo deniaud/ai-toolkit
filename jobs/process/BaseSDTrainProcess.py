@@ -1213,7 +1213,7 @@ class BaseSDTrainProcess(BaseTrainProcess):
                     timestep_indices = timestep_indices.long()
                 elif self.train_config.timestep_type == 'one_step':
                     timestep_indices = torch.zeros((batch_size,), device=self.device_torch, dtype=torch.long)
-                elif content_or_style in ['style', 'content']:
+                elif content_or_style in ['style', 'content', 'low_mid_noise', 'mid_high_noise', 'hybrid_noise']:
                     # this is from diffusers training code
                     # Cubic sampling for favoring later or earlier timesteps
                     # For more details about why cubic sampling is used for content / structure,
@@ -1224,10 +1224,20 @@ class BaseSDTrainProcess(BaseTrainProcess):
 
                     orig_timesteps = torch.rand((batch_size,), device=latents.device)
 
-                    if content_or_style == 'content':
+                    if content_or_style == 'content': # low noise
                         timestep_indices = orig_timesteps ** 3 * self.train_config.num_train_timesteps
-                    elif content_or_style == 'style':
+                    elif content_or_style == 'style': # high noise
                         timestep_indices = (1 - orig_timesteps ** 3) * self.train_config.num_train_timesteps
+                    elif content_or_style == 'low_mid_noise':
+                        low_threshold = 0.005
+                        high_threshold = 0.6
+                        scaled_timesteps = torch.rand((batch_size,), device=latents.device) * (high_threshold - low_threshold) + low_threshold
+                        timestep_indices = scaled_timesteps * self.train_config.num_train_timesteps
+                    elif content_or_style == 'mid_high_noise':
+                        low_threshold = 0.7
+                        high_threshold = 0.995
+                        scaled_timesteps = torch.rand((batch_size,), device=latents.device) * (high_threshold - low_threshold) + low_threshold
+                        timestep_indices = scaled_timesteps * self.train_config.num_train_timesteps
 
                     timestep_indices = value_map(
                         timestep_indices,
