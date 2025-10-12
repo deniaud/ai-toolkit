@@ -317,15 +317,13 @@ class ConceptSliderTrainer(DiffusionTrainer):
 
         erase_loss = torch.nn.functional.mse_loss(class_pred, erase_negative_target)
 
+        # send backward now because gradient checkpointing needs network polarity intact
         if anchor_target is None:
-            anchor_loss = torch.zeros_like(erase_loss)
+            total_pos_loss = (enhance_loss + erase_loss) / 2.0
         else:
             anchor_loss = torch.nn.functional.mse_loss(anchor_pred, anchor_target)
-
-        anchor_loss = anchor_loss * anchor_strength
-
-        # send backward now because gradient checkpointing needs network polarity intact
-        total_pos_loss = (enhance_loss + erase_loss + anchor_loss) / 3.0
+            anchor_loss = anchor_loss * anchor_strength
+            total_pos_loss = (enhance_loss + erase_loss + anchor_loss) / 3.0
         total_pos_loss.backward()
         total_pos_loss = total_pos_loss.detach()
 
@@ -351,11 +349,12 @@ class ConceptSliderTrainer(DiffusionTrainer):
         erase_loss = torch.nn.functional.mse_loss(class_pred, erase_positive_target)
 
         if anchor_target is None:
-            anchor_loss = torch.zeros_like(erase_loss)
+            total_neg_loss = (enhance_loss + erase_loss) / 2.0
         else:
             anchor_loss = torch.nn.functional.mse_loss(anchor_pred, anchor_target)
-        anchor_loss = anchor_loss * anchor_strength
-        total_neg_loss = (enhance_loss + erase_loss + anchor_loss) / 3.0
+            anchor_loss = anchor_loss * anchor_strength
+            total_neg_loss = (enhance_loss + erase_loss + anchor_loss) / 3.0
+
         total_neg_loss.backward()
         total_neg_loss = total_neg_loss.detach()
 
